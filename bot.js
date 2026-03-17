@@ -36,12 +36,12 @@ export async function registerWebhook() {
     // это снижает лишний трафик и нагрузку на сервер
     allowed_updates: ['message'],
 
-    // secret_token — опциональная дополнительная защита webhook.
-    // Если указать, Telegram будет добавлять заголовок
-    // X-Telegram-Bot-Api-Secret-Token в каждый запрос.
-    // На сервере можно проверять этот заголовок и отклонять запросы без него.
-    // Раскомментировать и добавить WEBHOOK_SECRET в .env если нужно:
-    // secret_token: process.env.WEBHOOK_SECRET,
+    // secret_token — дополнительная защита webhook.
+    // Telegram будет добавлять это значение в заголовок
+    // X-Telegram-Bot-Api-Secret-Token каждого запроса.
+    // В index.js мы проверяем этот заголовок и отклоняем запросы без него —
+    // так посторонний не сможет отправить фиктивный update даже зная URL
+    secret_token: process.env.WEBHOOK_SECRET,
   });
 
   // После регистрации ещё раз запрашиваем информацию о webhook

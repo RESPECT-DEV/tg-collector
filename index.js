@@ -20,17 +20,19 @@ app.use(express.json());
 
 // Регистрируем маршрут для приёма webhook-запросов от Telegram.
 // Telegram будет слать POST на этот URL каждый раз, когда в чате появится новое сообщение.
-// Токен бота в URL — дополнительная защита: посторонний не знает этот адрес
+// Токен бота в URL — первый уровень защиты: посторонний не знает этот адрес
 // и не сможет слать фиктивные запросы.
 app.post(`/webhook/${process.env.BOT_TOKEN}`, (req, res) => {
 
-  // Опциональная проверка secret_token — дополнительный уровень защиты.
-  // Если включить в bot.js, Telegram будет добавлять заголовок с секретом,
-  // и мы можем убедиться что запрос точно от Telegram, а не от кого-то ещё.
-  // const secret = req.headers['x-telegram-bot-api-secret-token'];
-  // if (secret !== process.env.WEBHOOK_SECRET) {
-  //   return res.sendStatus(403);
-  // }
+  // Проверяем secret_token — второй уровень защиты.
+  // Telegram добавляет значение WEBHOOK_SECRET в заголовок X-Telegram-Bot-Api-Secret-Token
+  // каждого запроса. Если заголовок отсутствует или не совпадает —
+  // отклоняем запрос со статусом 403, не обрабатывая его
+  const secret = req.headers['x-telegram-bot-api-secret-token'];
+  if (secret !== process.env.WEBHOOK_SECRET) {
+    console.warn('⚠️ Unauthorized webhook request — invalid secret token');
+    return res.sendStatus(403);
+  }
 
   // Передаём тело запроса в библиотеку node-telegram-bot-api.
   // Она разберёт объект update и вызовет нужные обработчики событий (bot.on(...))
