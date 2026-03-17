@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VPS Deploy · tg-collector</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --brand-start: #00a87f;
+  --brand-mid:   #00a4bb;
+  --brand-end:   #00abfc;
+
+  --bg:          #f8fafb;
+  --bg2:         #ffffff;
+  --bg3:         #f0f4f6;
+  --bg4:         #e8eef2;
+  --line:        #dde5ea;
+
+  --text:        #1c1c1c;
+  --text2:       #4a5568;
+  --text3:       #8fa0ad;
+
+  --accent:      #00a4bb;
+  --accent-light:#e0f7fb;
+  --green:       #00a87f;
+  --green-light: #e0f5ef;
+  --amber:       #e68a00;
+  --amber-light: #fff4e0;
+  --red:         #d93025;
+  --red-light:   #fde8e6;
+
+  --code-bg:     #f0f4f6;
+  --code-border: #dde5ea;
+  --code-kw:     #0066cc;
+  --code-fn:     #007a8c;
+  --code-str:    #00875a;
+  --code-cmt:    #8fa0ad;
+
+  --mono: 'JetBrains Mono', monospace;
+  --body: 'Inter', sans-serif;
+  --radius: 8px;
+}
+
+[data-theme="dark"] {
+  --bg:          #111416;
+  --bg2:         #181c1f;
+  --bg3:         #1e2327;
+  --bg4:         #252b30;
+  --line:        #2a3038;
+
+  --text:        #e4eaf0;
+  --text2:       #8fa4b4;
+  --text3:       #6e8899;
+
+  --accent:      #00b8d4;
+  --accent-light:#0a2a30;
+  --green:       #00c490;
+  --green-light: #0a2820;
+  --amber:       #f5a020;
+  --amber-light: #251a06;
+  --red:         #f05050;
+  --red-light:   #250e0e;
+
+  --code-bg:     #1a2028;
+  --code-border: #2a3444;
+  --code-kw:     #5ab0ff;
+  --code-fn:     #00c8e8;
+  --code-str:    #38d68e;
+  --code-cmt:    #4e6880;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-name {
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--brand-start), var(--brand-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-sep { width: 1px; height: 1.2rem; background: var(--line); }
+
+.header-title {
+  font-size: .85rem;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.theme-toggle {
+  margin-left: auto;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .35rem .6rem;
+  cursor: pointer;
+  font-size: .8rem;
+  color: var(--text2);
+  font-family: var(--body);
+  transition: background .2s;
+}
+.theme-toggle:hover { background: var(--bg4); }
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: calc(100vh - 57px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--line);
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 57px;
+  height: calc(100vh - 57px);
+  overflow-y: auto;
+}
+
+.sidebar-title {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 0 1.25rem .6rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem 1.25rem;
+  font-size: .84rem;
+  color: var(--text2);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all .15s;
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-num {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--bg3);
+  font-size: .68rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.nav-item.active .nav-num {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── MAIN ── */
+.main {
+  padding: 2.5rem 3rem;
+  max-width: 860px;
+}
+
+/* ── HERO ── */
+.hero { margin-bottom: 2.5rem; }
+
+.hero-badge {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: .2rem .75rem;
+  margin-bottom: .75rem;
+  opacity: .8;
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: .6rem;
+}
+
+.grad {
+  background: linear-gradient(135deg, var(--brand-start), var(--brand-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-desc {
+  color: var(--text2);
+  font-size: .95rem;
+  max-width: 540px;
+}
+
+/* ── SECTION ── */
+.section { margin-bottom: 2.5rem; scroll-margin-top: 80px; }
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  color: var(--text);
+}
+
+.section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-start), var(--brand-end));
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+.section-desc {
+  color: var(--text2);
+  font-size: .88rem;
+  margin-bottom: 1rem;
+}
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--code-border);
+}
+
+.code-dots { display: flex; gap: 5px; }
+.code-dots span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: block;
+}
+
+.code-lang {
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--text3);
+  font-weight: 500;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.code-block pre {
+  padding: 1rem 1.25rem;
+  font-family: var(--mono);
+  font-size: .8rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  color: var(--text);
+}
+
+.code-block pre .kw  { color: var(--code-kw); }
+.code-block pre .cm  { color: var(--code-cmt); font-style: italic; }
+.code-block pre .fn  { color: var(--code-fn); }
+.code-block pre .str { color: var(--code-str); }
+
+/* ── CALLOUT ── */
+.callout {
+  display: flex;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  font-size: .86rem;
+}
+
+.callout-icon { font-size: 1rem; flex-shrink: 0; margin-top: .05rem; }
+.callout-body { color: var(--text2); line-height: 1.6; }
+.callout-body strong { color: var(--text); }
+
+.callout.warn  { background: var(--amber-light); border: 1px solid var(--amber); }
+.callout.info  { background: var(--accent-light); border: 1px solid var(--accent); }
+.callout.tip   { background: var(--green-light);  border: 1px solid var(--green);  }
+
+/* ── SCHEMA ── */
+.schema {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  font-family: var(--mono);
+  font-size: .8rem;
+  line-height: 1.9;
+  color: var(--text2);
+  margin-bottom: 1rem;
+}
+
+.schema .arrow { color: var(--accent); }
+.schema .label { color: var(--text3); font-size: .72rem; }
+.schema .node  { color: var(--text); font-weight: 600; }
+
+/* ── TABLE ── */
+.pm2-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  font-size: .84rem;
+}
+
+.pm2-table th {
+  background: var(--bg3);
+  font-size: .67rem;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: .5rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.pm2-table td {
+  padding: .55rem 1rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--text2);
+  vertical-align: top;
+}
+
+.pm2-table tr:last-child td { border-bottom: none; }
+.pm2-table tr:hover td { background: var(--bg3); }
+
+.pm2-table code {
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--code-fn);
+  background: var(--bg3);
+  padding: .1rem .35rem;
+  border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <span class="logo-name">tg-collector</span>
+  <div class="header-sep"></div>
+  <span class="header-title">Деплой на VPS</span>
+  <button class="theme-toggle" onclick="toggleTheme()">🌙 Тёмная</button>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-title">Шаги</div>
+    <a class="nav-item active" href="#step1" onclick="setActive(this)">
+      <span class="nav-num">1</span> Подключение
+    </a>
+    <a class="nav-item" href="#step2" onclick="setActive(this)">
+      <span class="nav-num">2</span> Настройка сервера
+    </a>
+    <a class="nav-item" href="#step3" onclick="setActive(this)">
+      <span class="nav-num">3</span> Node.js
+    </a>
+    <a class="nav-item" href="#step4" onclick="setActive(this)">
+      <span class="nav-num">4</span> Nginx + HTTPS
+    </a>
+    <a class="nav-item" href="#step5" onclick="setActive(this)">
+      <span class="nav-num">5</span> Загрузка проекта
+    </a>
+    <a class="nav-item" href="#step6" onclick="setActive(this)">
+      <span class="nav-num">6</span> .env на сервере
+    </a>
+    <a class="nav-item" href="#step7" onclick="setActive(this)">
+      <span class="nav-num">7</span> PM2
+    </a>
+    <a class="nav-item" href="#schema" onclick="setActive(this)">
+      <span class="nav-num">→</span> Схема
+    </a>
+    <a class="nav-item" href="#update" onclick="setActive(this)">
+      <span class="nav-num">↑</span> Обновление
+    </a>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="hero">
+      <div class="hero-badge">tg-collector · Инструкция</div>
+      <h1 class="hero-title">Деплой на <span class="grad">VPS</span></h1>
+      <p class="hero-desc">Пошаговая инструкция по настройке сервера и запуску телеграм-бота в продакшне.</p>
+    </div>
+
+    <!-- ШАГ 1 -->
+    <section class="section" id="step1">
+      <h2 class="section-title">
+        <span class="section-num">1</span>
+        Выбрать VPS и подключиться
+        <span class="section-line"></span>
+      </h2>
+      <p class="section-desc">
+        Любой провайдер подойдёт: Timeweb, Selectel, Hetzner, DigitalOcean и др.
+        При создании выбрать <strong>Ubuntu 22.04</strong>.
+        После создания провайдер даст IP и пароль root.
+      </p>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Подключиться с локальной машины</span>
+ssh root@&lt;IP_сервера&gt;</pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 2 -->
+    <section class="section" id="step2">
+      <h2 class="section-title">
+        <span class="section-num">2</span>
+        Первичная настройка сервера
+        <span class="section-line"></span>
+      </h2>
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div class="callout-body">Работать под root небезопасно — создай отдельного пользователя и используй его.</div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Обновить пакеты</span>
+apt update && apt upgrade -y
+
+<span class="cm"># Создать отдельного пользователя</span>
+adduser elena
+usermod -aG sudo elena
+
+<span class="cm"># Переключиться на нового пользователя</span>
+su - elena</pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 3 -->
+    <section class="section" id="step3">
+      <h2 class="section-title">
+        <span class="section-num">3</span>
+        Установить Node.js
+        <span class="section-line"></span>
+      </h2>
+      <p class="section-desc">Устанавливаем через nvm — менеджер версий Node.js.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Установить nvm</span>
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+<span class="cm"># Перезагрузить окружение</span>
+source ~/.bashrc
+
+<span class="cm"># Установить Node.js 20</span>
+nvm install 20
+nvm use 20
+
+<span class="cm"># Проверить</span>
+node -v
+npm -v</pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 4 -->
+    <section class="section" id="step4">
+      <h2 class="section-title">
+        <span class="section-num">4</span>
+        Nginx + HTTPS
+        <span class="section-line"></span>
+      </h2>
+      <p class="section-desc">
+        Nginx принимает запросы на порту 443 (HTTPS) и проксирует их на Node.js (порт 3000).
+      </p>
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div class="callout-body">
+          <strong>Сначала нужен домен</strong> — прописать A-запись на IP сервера у регистратора.
+          Только после этого certbot сможет получить сертификат.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Установить Nginx и certbot</span>
+sudo apt install nginx -y
+sudo apt install certbot python3-certbot-nginx -y
+
+<span class="cm"># Получить SSL-сертификат (Let's Encrypt, бесплатно)</span>
+sudo certbot --nginx -d yourdomain.com
+
+<span class="cm"># Открыть конфиг Nginx</span>
+sudo nano /etc/nginx/sites-available/default</pre>
+      </div>
+      <p class="section-desc">Привести конфиг к такому виду:</p>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">nginx</span>
+        </div>
+        <pre>server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+
+    <span class="cm"># ssl-параметры certbot уже вписал автоматически</span>
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Проверить конфиг и перезапустить Nginx</span>
+sudo nginx -t
+sudo systemctl reload nginx</pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 5 -->
+    <section class="section" id="step5">
+      <h2 class="section-title">
+        <span class="section-num">5</span>
+        Загрузить проект
+        <span class="section-line"></span>
+      </h2>
+      <div class="callout tip">
+        <span class="callout-icon">▶</span>
+        <div class="callout-body"><strong>Рекомендую через Git</strong> — удобнее обновлять в будущем командой <code>git pull</code>.</div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash · вариант А — git</span>
+        </div>
+        <pre>cd ~
+git clone https://github.com/твой-репозиторий/tg-collector.git
+cd tg-collector
+npm install</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash · вариант Б — scp</span>
+        </div>
+        <pre><span class="cm"># С локальной машины</span>
+scp -r /Users/elena/Desktop/projects/tg-collector elena@&lt;IP&gt;:~/</pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 6 -->
+    <section class="section" id="step6">
+      <h2 class="section-title">
+        <span class="section-num">6</span>
+        Создать .env на сервере
+        <span class="section-line"></span>
+      </h2>
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div class="callout-body">
+          <strong>.env не хранится в git</strong> — его нужно создавать вручную на каждом сервере.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre>cd ~/tg-collector
+cp .env.example .env
+nano .env</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">.env</span>
+        </div>
+        <pre>BOT_TOKEN=<span class="str">твой_токен</span>
+WEBHOOK_URL=<span class="str">https://yourdomain.com</span>
+BACKEND_ENDPOINT=<span class="str">https://r.respectrb.ru/api/tg-message/</span>
+PORT=<span class="str">3000</span></pre>
+      </div>
+    </section>
+
+    <!-- ШАГ 7 -->
+    <section class="section" id="step7">
+      <h2 class="section-title">
+        <span class="section-num">7</span>
+        Запустить через PM2
+        <span class="section-line"></span>
+      </h2>
+      <p class="section-desc">
+        PM2 — менеджер процессов: следит чтобы бот работал 24/7,
+        перезапускает при падении, стартует после перезагрузки сервера.
+      </p>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre><span class="cm"># Установить PM2</span>
+npm install -g pm2
+
+<span class="cm"># Запустить бота</span>
+pm2 start index.js --name tg-collector
+
+<span class="cm"># Автозапуск после перезагрузки сервера</span>
+pm2 startup
+pm2 save</pre>
+      </div>
+      <table class="pm2-table">
+        <thead>
+          <tr>
+            <th>Команда</th>
+            <th>Действие</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>pm2 status</code></td>
+            <td>Статус всех процессов</td>
+          </tr>
+          <tr>
+            <td><code>pm2 logs tg-collector</code></td>
+            <td>Логи в реальном времени</td>
+          </tr>
+          <tr>
+            <td><code>pm2 restart tg-collector</code></td>
+            <td>Перезапустить бота</td>
+          </tr>
+          <tr>
+            <td><code>pm2 stop tg-collector</code></td>
+            <td>Остановить бота</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- СХЕМА -->
+    <section class="section" id="schema">
+      <h2 class="section-title">
+        <span class="section-num">→</span>
+        Итоговая схема
+        <span class="section-line"></span>
+      </h2>
+      <div class="schema">
+<span style="color:var(--text3)">Интернет</span>
+    <span class="arrow">↓</span> <span class="label">HTTPS :443</span>
+  <span class="node">Nginx</span>
+    <span class="arrow">↓</span> <span class="label">HTTP :3000</span>
+  <span class="node">Node.js (PM2)</span>
+    <span class="arrow">↓</span>
+  <span class="node">bot.js</span> <span class="arrow">→</span> <span class="node">handlers.js</span> <span class="arrow">→</span> <span class="label">POST на бэкенд</span>
+      </div>
+    </section>
+
+    <!-- ОБНОВЛЕНИЕ -->
+    <section class="section" id="update">
+      <h2 class="section-title">
+        <span class="section-num">↑</span>
+        Обновление проекта
+        <span class="section-line"></span>
+      </h2>
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-dots">
+            <span style="background:#ff5f57"></span>
+            <span style="background:#febc2e"></span>
+            <span style="background:#28c840"></span>
+          </div>
+          <span class="code-lang">bash</span>
+        </div>
+        <pre>cd ~/tg-collector
+git pull
+npm install              <span class="cm"># если менялись зависимости</span>
+pm2 restart tg-collector</pre>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+  document.querySelector('.theme-toggle').textContent = isDark ? '🌙 Тёмная' : '☀️ Светлая';
+}
+
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Подсвечиваем активный пункт при скролле
+const sections = document.querySelectorAll('.section');
+const navItems = document.querySelectorAll('.nav-item');
+
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  navItems.forEach(item => {
+    item.classList.toggle('active', item.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+
+</body>
+</html>
