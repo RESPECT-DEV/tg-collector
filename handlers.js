@@ -1,6 +1,20 @@
 // URL нашего бэкенда, куда будем отправлять данные каждого сообщения.
 // Берётся из переменных окружения (.env)
 const BACKEND_ENDPOINT = process.env.BACKEND_ENDPOINT;
+const BOT_TOKEN        = process.env.BOT_TOKEN;
+
+// MIME-типы для медиа, которые Telegram не сообщает явно.
+// Для document Telegram сам присылает mime_type в объекте вложения —
+// остальные типы фиксированы и не меняются
+const MIME_TYPE_MAP = {
+  photo:     'image/jpeg',
+  video:     'video/mp4',
+  audio:     'audio/mpeg',
+  voice:     'audio/ogg',
+  sticker:   'image/webp',
+  animation: 'image/gif',
+  // document — определяется динамически из msg.document.mime_type
+};
 
 // Главный обработчик входящего сообщения.
 // Вызывается из index.js через bot.on('message', handleMessage)
@@ -8,10 +22,13 @@ const BACKEND_ENDPOINT = process.env.BACKEND_ENDPOINT;
 export async function handleMessage(msg) {
 
   // Собираем из сырого объекта Telegram только нужные нам поля
-  const payload = buildPayload(msg);
+  const payload = await buildPayload(msg);
 
-  // Выводим payload в консоль — удобно для отладки
-  console.log('📨 Incoming message:', JSON.stringify(payload, null, 2));
+  // Выводим payload в консоль — удобно для отладки.
+  // file_base64 не логируем — он слишком длинный
+  const { file_base64, ...payloadForLog } = payload;
+  console.log('📨 Incoming message:', JSON.stringify(payloadForLog, null, 2));
+  if (file_base64) console.log('📎 File attached, base64 length:', file_base64.length);
 
   // Отправляем данные на бэкенд POST-запросом.
   // Бэкенд вызовет plpgsql-функцию, которая запишет сообщение в БД
@@ -34,10 +51,50 @@ export async function handleMessage(msg) {
   }
 }
 
+// Запрашивает у Telegram API информацию о файле по file_id.
+// Возвращает объект { file_path } или null если запрос не удался.
+// file_path нужен для формирования ссылки на скачивание
+async function getFilePath(fileId) {
+  try {
+    const res  = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+    const data = await res.json();
+    if (data.ok) return data.result.file_path;
+    console.error('❌ getFile error:', data.description);
+    return null;
+  } catch (err) {
+    console.error('❌ getFile request failed:', err.message);
+    return null;
+  }
+}
+
+// Скачивает файл по file_path с серверов Telegram.
+// Возвращает строку base64 или null если скачивание не удалось.
+// Telegram гарантирует что ссылка активна минимум 1 час после вызова getFile
+async function downloadFileAsBase64(filePath) {
+  try {
+    const res    = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
+    const buffer = await res.arrayBuffer();
+    return Buffer.from(buffer).toString('base64');
+  } catch (err) {
+    console.error('❌ File download failed:', err.message);
+    return null;
+  }
+}
+
+// Определяет MIME-тип файла.
+// Для document берём mime_type из объекта Telegram — он передаёт его явно.
+// Для остальных типов используем фиксированную таблицу MIME_TYPE_MAP
+function getMimeType(msg, mediaType) {
+  if (mediaType === 'document' && msg.document?.mime_type) {
+    return msg.document.mime_type;
+  }
+  return MIME_TYPE_MAP[mediaType] || null;
+}
+
 // Собирает из сырого объекта Telegram (msg) плоский объект с нужными полями.
-// Telegram присылает вложенную структуру — здесь мы её разворачиваем
-// в удобный формат для передачи на бэкенд и записи в БД
-function buildPayload(msg) {
+// Если в сообщении есть медиафайл — дополнительно запрашивает ссылку на скачивание
+// и скачивает файл, добавляя его в payload как base64-строку
+async function buildPayload(msg) {
   const { message_id, chat, from, text, date } = msg;
 
   // Определяем тип медиа если есть вложение.
@@ -76,6 +133,29 @@ function buildPayload(msg) {
   // Сохраняем объект целиком в JSONB — так проще, чем дробить на отдельные поля
   const forwardOrigin = msg.forward_origin || null;
 
+  // Поля для файла — заполняем только если есть вложение
+  let filePath   = null; // путь на серверах Telegram, нужен для формирования ссылки
+  let fileUrl    = null; // полная ссылка на скачивание (действует ~1 час после getFile)
+  let mimeType   = null; // MIME-тип файла
+  let fileBase64 = null; // содержимое файла в base64
+
+  if (fileId) {
+    // Запрашиваем file_path у Telegram — без него не получить ссылку и не скачать файл
+    filePath = await getFilePath(fileId);
+
+    if (filePath) {
+      // Формируем прямую ссылку на скачивание.
+      // Ссылка содержит токен бота — не хранить в открытом доступе
+      fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+
+      // Определяем MIME-тип
+      mimeType = getMimeType(msg, mediaType);
+
+      // Скачиваем файл и конвертируем в base64 для передачи через JSON
+      fileBase64 = await downloadFileAsBase64(filePath);
+    }
+  }
+
   return {
     message_id,                               // ID сообщения внутри чата
     chat_id:         chat.id,                 // уникальный числовой ID чата
@@ -90,6 +170,9 @@ function buildPayload(msg) {
     has_media:       !!mediaType,             // true если есть вложение
     media_type:      mediaType,               // тип вложения или null
     file_id:         fileId,                  // ID файла на серверах Telegram или null
+    file_mime_type:  mimeType,                // MIME-тип файла или null
+    file_url:        fileUrl,                 // ссылка на скачивание (действует ~1 час) или null
+    file_base64:     fileBase64,              // содержимое файла в base64 или null
     is_bot:          from?.is_bot || false,   // сообщение от другого бота?
     reply_to_msg_id: msg.reply_to_message?.message_id || null, // ID сообщения, на которое ответили
     forward_origin:  forwardOrigin,           // объект пересылки или null
