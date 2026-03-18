@@ -5,7 +5,7 @@ import 'dotenv/config';
 import express from 'express';
 
 // Импортируем объект бота и функции управления webhook из bot.js
-import { bot, registerWebhook, deregisterWebhook } from './bot.js';
+import { bot, registerWebhook, deregisterWebhook, handleMyChatMember } from './bot.js';
 
 // Импортируем обработчик входящих сообщений из handlers.js
 import { handleMessage } from './handlers.js';
@@ -48,6 +48,12 @@ app.post(`/webhook/${process.env.BOT_TOKEN}`, (req, res) => {
 // когда бот получает новое сообщение из любого чата.
 // handleMessage — функция из handlers.js, которая обработает сообщение
 bot.on('message', handleMessage);
+
+// Подписываемся на событие 'my_chat_member' — срабатывает когда
+// статус бота в чате меняется (добавили, удалили, повысили и т.д.).
+// handleMyChatMember проверяет кто добавил бота и покидает чат
+// если пользователь не в списке ALLOWED_ADMINS
+bot.on('my_chat_member', handleMyChatMember);
 
 // Запускаем HTTP-сервер на указанном порту.
 // После старта сразу регистрируем webhook в Telegram

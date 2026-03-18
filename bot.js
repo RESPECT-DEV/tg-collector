@@ -6,6 +6,13 @@ import TelegramBot from 'node-telegram-bot-api';
 // а пассивно ждёт входящих POST-запросов на наш сервер
 export const bot = new TelegramBot(process.env.BOT_TOKEN);
 
+// Список user_id пользователей, которым разрешено добавлять бота в чаты.
+// Берётся из ALLOWED_ADMINS в .env — через запятую без пробелов.
+// Пример: ALLOWED_ADMINS=257906360,987654321
+const ALLOWED_ADMINS = process.env.ALLOWED_ADMINS
+  ? process.env.ALLOWED_ADMINS.split(',').map(Number)
+  : [];
+
 // Регистрирует webhook в Telegram — говорит Telegram, на какой URL слать обновления.
 // Вызывается один раз при старте сервера
 export async function registerWebhook() {
@@ -31,10 +38,10 @@ export async function registerWebhook() {
   await bot.setWebHook(webhookUrl, {
 
     // allowed_updates — фильтр типов событий.
-    // Указываем только 'message', чтобы получать обычные сообщения из чатов.
-    // Остальные типы (callback_query, inline_query и др.) Telegram слать не будет —
-    // это снижает лишний трафик и нагрузку на сервер
-    allowed_updates: ['message'],
+    // 'message'        — обычные сообщения из чатов
+    // 'my_chat_member' — изменение статуса бота в чате (добавление, удаление и т.д.)
+    //                    нужен для отслеживания кто добавил бота в группу
+    allowed_updates: ['message', 'my_chat_member'],
 
     // secret_token — дополнительная защита webhook.
     // Telegram будет добавлять это значение в заголовок
@@ -63,4 +70,33 @@ export async function registerWebhook() {
 export async function deregisterWebhook() {
   await bot.deleteWebHook();
   console.log('Webhook removed.');
+}
+
+// Обработчик события my_chat_member — срабатывает когда статус бота в чате меняется.
+// Используем для контроля кто добавляет бота в группы:
+// если пользователь не в списке ALLOWED_ADMINS — бот сразу покидает чат
+export async function handleMyChatMember(update) {
+
+  // Интересует только момент когда бота добавляют в чат —
+  // new_chat_member.status становится 'member' или 'administrator'.
+  // Игнорируем остальные изменения (бота кикнули, забанили и т.д.)
+  const newStatus = update.new_chat_member?.status;
+  if (newStatus !== 'member' && newStatus !== 'administrator') return;
+
+  const addedBy = update.from.id;     // user_id того, кто добавил бота
+  const chat    = update.chat;        // чат куда добавили
+
+  if (ALLOWED_ADMINS.includes(addedBy)) {
+    // Пользователь в белом списке — бот остаётся в чате
+    console.log(`✅ Bot added to "${chat.title}" (${chat.id}) by allowed admin ${addedBy}`);
+  } else {
+    // Пользователь не в белом списке — покидаем чат немедленно
+    console.warn(`⛔ Unauthorized add attempt by user ${addedBy} in chat "${chat.title}" (${chat.id}) — leaving`);
+    try {
+      await bot.leaveChat(chat.id);
+      console.log(`👋 Left chat "${chat.title}" (${chat.id})`);
+    } catch (err) {
+      console.error(`❌ Failed to leave chat ${chat.id}:`, err.message);
+    }
+  }
 }
