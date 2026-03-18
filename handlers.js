@@ -3,6 +3,13 @@
 const BACKEND_ENDPOINT = process.env.BACKEND_ENDPOINT;
 const BOT_TOKEN        = process.env.BOT_TOKEN;
 
+// Список user_id пользователей, которым разрешено писать боту в личку.
+// Тот же список что и ALLOWED_ADMINS в bot.js — берётся из одной переменной .env.
+// Сообщения от остальных пользователей в private-чате игнорируются
+const ALLOWED_ADMINS = process.env.ALLOWED_ADMINS
+  ? process.env.ALLOWED_ADMINS.split(',').map(Number)
+  : [];
+
 // MIME-типы для медиа, которые Telegram не сообщает явно.
 // Для document Telegram сам присылает mime_type в объекте вложения —
 // остальные типы фиксированы и не меняются
@@ -20,6 +27,16 @@ const MIME_TYPE_MAP = {
 // Вызывается из index.js через bot.on('message', handleMessage)
 // каждый раз, когда в чат приходит новое сообщение
 export async function handleMessage(msg) {
+
+  // Фильтр личных сообщений — защита от спама.
+  // В групповых чатах бот уже защищён через handleMyChatMember в bot.js:
+  // туда попадают только чаты добавленные разрешёнными пользователями.
+  // Но в личку боту может написать кто угодно — поэтому фильтруем здесь:
+  // если chat_type === 'private' и отправитель не в ALLOWED_ADMINS — игнорируем
+  if (msg.chat.type === 'private' && !ALLOWED_ADMINS.includes(msg.from?.id)) {
+    console.warn(`⛔ Ignored private message from unauthorized user ${msg.from?.id} (@${msg.from?.username})`);
+    return;
+  }
 
   // Собираем из сырого объекта Telegram только нужные нам поля
   const payload = await buildPayload(msg);
